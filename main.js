@@ -1,49 +1,48 @@
-const freq = 10000;         // Target frequency (Hz)
-    const startDuration = 0.2;    // 200 ms start signal
-    const bitDuration = 0.2;      // 200 ms per bit
-    const pattern = [1, 0, 1, 0]; // Unlock code pattern (1010)
+const freq = 18963.9;        // Target frequency (Hz)
+    const startDuration = 0.2;   // 200 ms start signal
+    const bitDuration = 0.2;     // 200 ms per bit
+    const pattern = [1, 0, 1, 0]; // Code: 1010
 
-async function sendSignal() {
-      // Create AudioContext (Safari on iOS needs user gesture)
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+      // Create/resume AudioContext
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtx();
 
-      // Helper: Play a tone for a duration
-      async function playTone(duration) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc.type = "sine";
-        osc.frequency.value = freq;
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        gain.gain.setValueAtTime(1, audioCtx.currentTime);
-
-        osc.start();
-        await new Promise(r => setTimeout(r, duration * 1000));
-        osc.stop();
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
       }
 
-      // Helper: Silence for a duration
-      async function playSilence(duration) {
-        await new Promise(r => setTimeout(r, duration * 1000));
-      }
+      const gain = audioCtx.createGain();
+      gain.connect(audioCtx.destination);
 
-      console.log("🔊 Sending start tone...");
-      await playTone(startDuration);
+      const now = audioCtx.currentTime;
+      let t = now;
 
-      console.log("🔊 Sending code pattern...");
-      for (let bit of pattern) {
+      // 🔊 Start tone (200 ms)
+      let osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + startDuration);
+      t += startDuration;
+
+      // Small gap between start and code (optional, 50 ms)
+      t += 0.05;
+
+      // 🔊 Encode pattern (1 = tone, 0 = silence)
+      pattern.forEach(bit => {
         if (bit === 1) {
-          console.log("Bit 1 → Play tone");
-          await playTone(bitDuration);
-        } else {
-          console.log("Bit 0 → Silence");
-          await playSilence(bitDuration);
+          let o = audioCtx.createOscillator();
+          o.type = "sine";
+          o.frequency.setValueAtTime(freq, t);
+          o.connect(gain);
+          o.start(t);
+          o.stop(t + bitDuration);
         }
-      }
+        // if bit == 0 → silence (do nothing)
+        t += bitDuration;
+      });
 
-      console.log("✅ Signal sent!");
-}
-
+      console.log("✅ Signal scheduled at " + freq + " Hz");
+    });
