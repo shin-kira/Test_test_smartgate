@@ -23,59 +23,54 @@ const gatestate = {
   timestamp: null,
   validUntil: null
 };
+const freq = 19963.9; // Target frequency
+const startDuration = 0.2; // 300ms for start signal
+const bitDuration = 0.2; // 200ms per bit
+const pattern = [1, 0, 1, 0]; // 1010
 
-function sendSignal() {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
+async function sendSignal() {
+      // Create an AudioContext (must be inside user gesture)
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      const freq = 19963.9; // Target frequency
-      const startDuration = 0.2; // 300ms for start signal
-      const bitDuration = 0.2; // 200ms per bit
-      const pattern = [1, 0, 1, 0]; // 1010
+      // Function to play a tone for a specific duration
+      async function playTone(freq, duration) {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
 
-      oscillator.type = 'sine';
-      oscillator.frequency.value = freq;
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
 
-      const now = context.currentTime;
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
 
-      // Start tone for 300ms
-      gainNode.gain.setValueAtTime(1, now);
-      gainNode.gain.setValueAtTime(0, now + startDuration);
+        oscillator.start();
+        await new Promise(resolve => setTimeout(resolve, duration));
+        oscillator.stop();
+      }
 
-      let time = now + startDuration;
+      // Play start tone
+      console.log("Playing start tone...");
+      await playTone(startFreq, startDuration);
 
-      // Encode the pattern
-      pattern.forEach(bit => {
-        if (bit === 1) {
-          gainNode.gain.setValueAtTime(1, time);
-          gainNode.gain.setValueAtTime(0, time + bitDuration);
-        } else {
-          gainNode.gain.setValueAtTime(0, time);
-          gainNode.gain.setValueAtTime(0, time + bitDuration);
-        }
-        time += bitDuration;
-      });
+      // Small gap (optional)
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      oscillator.start(now);
-      oscillator.stop(time);
-}
+      // Play each bit
+      for (let bit of code) {
+        let freq = bit === 0 ? bit0Freq : bit1Freq;
+        console.log(`Playing bit ${bit} at ${freq} Hz`);
+        await playTone(freq, bitDuration);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Gap between bits
+      }
+
+      console.log("Signal complete!");
+    }
 
 document.addEventListener("DOMContentLoaded", () => {
   const gateButton = document.getElementById("gateAccsess");
   if (!gateButton) return;
 
   gateButton.addEventListener("click", () => {
-    const otpExpiry = 20000; 
-
-    gateButton.disabled = true; // ✅ Prevent spamming clicks
-
-    gatestate.state = true;
-    gatestate.OTP = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
-    gatestate.timestamp = Date.now();
-    gatestate.validUntil = Date.now() + otpExpiry;
 
     sendSignal();
 
@@ -93,3 +88,4 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch(err => console.error("❌ Error updating gate access:", err));
   });
 });
+
