@@ -1,4 +1,4 @@
-const freq = 19963.9;         // Target frequency (Hz)
+const freq = 10000;         // Target frequency (Hz)
     const startDuration = 0.2;    // 200 ms start signal
     const bitDuration = 0.2;      // 200 ms per bit
     const pattern = [1, 0, 1, 0]; // Unlock code pattern (1010)
@@ -46,3 +46,4 @@ async function sendSignal() {
 
       console.log("✅ Signal sent!");
 }
+
