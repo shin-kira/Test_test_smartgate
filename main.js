@@ -1,91 +1,48 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyA_RsdlNL9CLIDr8kw5yGgNZCaBj3PxPBk",
-  authDomain: "gate-pre.firebaseapp.com",
-  databaseURL: "https://gate-pre-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "gate-pre",
-  storageBucket: "gate-pre.appspot.com",
-  messagingSenderId: "786412393457",
-  appId: "1:786412393457:web:6226728a8cf5863073ea50"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const guestId = "guest123";
-const guestRef = ref(db, `guests/${guestId}`);
-
-const gatestate = {
-  OTP: null,
-  state: false,
-  timestamp: null,
-  validUntil: null
-};
-const freq = 19963.9; // Target frequency
-const startDuration = 0.2; // 300ms for start signal
-const bitDuration = 0.2; // 200ms per bit
-const pattern = [1, 0, 1, 0]; // 1010
+const freq = 19963.9;         // Target frequency (Hz)
+    const startDuration = 0.2;    // 200 ms start signal
+    const bitDuration = 0.2;      // 200 ms per bit
+    const pattern = [1, 0, 1, 0]; // Unlock code pattern (1010)
 
 async function sendSignal() {
-      // Create an AudioContext (must be inside user gesture)
+      // Create AudioContext (Safari on iOS needs user gesture)
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      // Function to play a tone for a specific duration
-      async function playTone(freq, duration) {
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
+      // Helper: Play a tone for a duration
+      async function playTone(duration) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
 
-        oscillator.type = 'sine';
-        oscillator.frequency.value = freq;
+        osc.type = "sine";
+        osc.frequency.value = freq;
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
 
-        oscillator.start();
-        await new Promise(resolve => setTimeout(resolve, duration));
-        oscillator.stop();
+        gain.gain.setValueAtTime(1, audioCtx.currentTime);
+
+        osc.start();
+        await new Promise(r => setTimeout(r, duration * 1000));
+        osc.stop();
       }
 
-      // Play start tone
-      console.log("Playing start tone...");
-      await playTone(startFreq, startDuration);
-
-      // Small gap (optional)
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Play each bit
-      for (let bit of code) {
-        let freq = bit === 0 ? bit0Freq : bit1Freq;
-        console.log(`Playing bit ${bit} at ${freq} Hz`);
-        await playTone(freq, bitDuration);
-        await new Promise(resolve => setTimeout(resolve, 100)); // Gap between bits
+      // Helper: Silence for a duration
+      async function playSilence(duration) {
+        await new Promise(r => setTimeout(r, duration * 1000));
       }
 
-      console.log("Signal complete!");
-    }
+      console.log("🔊 Sending start tone...");
+      await playTone(startDuration);
 
-document.addEventListener("DOMContentLoaded", () => {
-  const gateButton = document.getElementById("gateAccsess");
-  if (!gateButton) return;
+      console.log("🔊 Sending code pattern...");
+      for (let bit of pattern) {
+        if (bit === 1) {
+          console.log("Bit 1 → Play tone");
+          await playTone(bitDuration);
+        } else {
+          console.log("Bit 0 → Silence");
+          await playSilence(bitDuration);
+        }
+      }
 
-  gateButton.addEventListener("click", () => {
-
-    sendSignal();
-
-    update(guestRef, gatestate)
-      .then(() => {
-        console.log(`✅ Gate access granted! OTP: ${gatestate.OTP}`);
-
-        // ✅ Auto reset after expiry
-        setTimeout(() => {
-          update(guestRef, { state: false, OTP: null })
-            .then(() => console.log("✅ OTP expired, gate closed"))
-            .catch(err => console.error("Error resetting gate:", err));
-        }, 5000);
-      })
-      .catch(err => console.error("❌ Error updating gate access:", err));
-  });
-});
-
+      console.log("✅ Signal sent!");
+}
