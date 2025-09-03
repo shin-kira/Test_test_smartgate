@@ -1,5 +1,5 @@
 const freq = 19963.9;        // Target frequency (Hz)
-    const startDuration = 0.4;   // 200 ms start signal
+    const startDuration = 0.5;   // 200 ms start signal
     const bitDuration = 0.2;     // 200 ms per bit
     const pattern = [0, 0, 1, 0]; // Code: 1010
 
@@ -46,6 +46,7 @@ const freq = 19963.9;        // Target frequency (Hz)
 
       console.log("✅ Signal scheduled at " + freq + " Hz");
     });
+
 
 
 
